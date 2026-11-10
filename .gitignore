@@ -43,3 +43,6 @@ Thumbs.db
 _tmp/
 tmp*/
 *.log
+
+# Offline transfer artefact
+*.bundle
