@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "route-audit"
+version = "1.0.0"
+description = "Offline audit sandbox for model-routing economics: what did routing mistakes cost?"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "route-audit" }]
+keywords = ["llm", "routing", "cascade", "cost", "audit", "evaluation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Quality Assurance",
+]
+# The audit core is deliberately dependency-free: the offline simulator, the
+# grader, the accounting layer and the Markdown report are all standard library
+# only.  `numpy`/`matplotlib` are optional extras used by the chart renderer.
+dependencies = []
+
+[project.optional-dependencies]
+# Only needed by `routeaudit.charts` (figures).  The audit and the report work
+# without them.
+figures = ["numpy>=1.24", "matplotlib>=3.7"]
+# Development extras.  NOTE: the test suite itself does **not** import pytest —
+# it is written against the standard library `unittest` runner so the sandbox
+# stays verifiable offline.  pytest is listed only as a convenience runner for
+# developers who happen to have it installed.
+dev = ["pytest>=7.0", "coverage>=7.0"]
+all = ["numpy>=1.24", "matplotlib>=3.7", "pytest>=7.0", "coverage>=7.0"]
+
+[project.scripts]
+routeaudit = "routeaudit.cli:main"
+
+[project.urls]
+Documentation = "https://example.invalid/route-audit"
+
+[tool.setuptools]
+packages = ["routeaudit"]
+
+[tool.setuptools.package-data]
+routeaudit = ["py.typed"]
+
+# --------------------------------------------------------------------------- #
+# pytest is an optional convenience runner only.
+#
+# The canonical way to run the suite is the standard library:
+#     python -m unittest discover -s tests -v
+#
+# If pytest happens to be installed, the configuration below makes it discover
+# the same `unittest.TestCase` classes and report them normally.
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*", "*Tests"]
+python_functions = ["test_*"]
+addopts = "-ra"
+filterwarnings = ["error::DeprecationWarning:routeaudit.*"]
+
+[tool.coverage.run]
+source = ["routeaudit"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

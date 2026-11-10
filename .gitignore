@@ -1,0 +1,45 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test / coverage artefacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+
+# Audit artefacts — regenerable, and huge (runs/audit.json is ~4 MB)
+# Keep them out of git; the README documents how to regenerate.
+# NOTE: docs/figures/ IS tracked — those are the figures embedded in the README.
+runs/
+out/
+audit.json
+analysis.json
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local scratch
+_tmp/
+tmp*/
+*.log
