@@ -1,19 +1,69 @@
-# 上传到 GitHub 操作指南
+# 上传到 GitHub 操作指南（PAT Classic 路线）
 
 > 目标仓库：<https://github.com/zzc1-nz/route-audit>（public）
-
-## 为什么需要你手动执行
-
-这台机器**所有 HTTPS 都不通**（不只是 GitHub——`example.com`、`pypi.org` 都失败，
-报 `SEC_E_NO_CREDENTIALS`）。所以 `git push` 只能在你本机完成。
-
-本地仓库已经准备好：2 个 commit，工作区干净，35 个文件，只差一条 push。
+>
+> 本地仓库已就绪：3 个 commit、37 个文件、工作区干净、远程 origin 已配置。
+> 你只需要：建 token → 建仓库 → push。
 
 ---
 
-## 方案 A：本机已装 Git（推荐，最快）
+## ⚠️ 两条机器级注意事项（先读，否则 push 必失败）
 
-### 1. 在 GitHub 网页上建空仓库
+这两条是这台机器实测发现的真实障碍，与 token 无关：
+
+### 1. git 全局代理指向一个没在运行的端口
+
+这台机器的 git 全局配置里有：
+
+```
+http.proxy  = http://127.0.0.1:7897
+https.proxy = http://127.0.0.1:7897
+```
+
+如果你**没有开代理软件**（Clash/v2ray 等），push 会直接报
+`Failed to connect to 127.0.0.1 port 7897`。二选一：
+
+```powershell
+# 选择一：先把你的代理软件打开（端口确认是 7897），什么都不用改
+
+# 选择二：不用代理，直连（如果你网络可以直连 GitHub）
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+```
+
+### 2. 如果报 `schannel: SEC_E_NO_CREDENTIALS`
+
+沙箱/受限环境下 Windows TLS 后端可能报这个错。给这一条命令临时换 OpenSSL 后端：
+
+```powershell
+git -c http.sslBackend=openssl push -u origin main
+```
+
+（已在本机实测：OpenSSL 后端可以正常连通 GitHub。日常终端通常不会遇到，
+遇到再用这条。）
+
+---
+
+## 第 1 步：生成 PAT (Classic)
+
+1. 打开 <https://github.com/settings/tokens>
+2. **Generate new token → Generate new token (classic)**
+3. 填写：
+   - **Note**：`route-audit push`
+   - **Expiration**：90 天（或你习惯的周期）
+   - **Select scopes**：勾选 **`repo`** 这一项就够了
+     （classic 的 `repo` scope 同时覆盖 public 和 private 仓库的读写）
+4. 点页面底部 **Generate token**
+5. **立刻复制**显示出来的 `ghp_...` 字符串——离开这个页面就再也看不到了
+
+> 安全要求：token 只出现在你自己的终端里。**不要**粘贴到任何聊天窗口、
+> 截图、issue 或代码里。本对话之前出现过一次 token 泄露，
+> GitHub 的 secret scanning 会在几分钟内自动撤销泄露的 token——
+> 这是它失效的原因，也是这个机制在保护你。
+
+---
+
+## 第 2 步：创建空仓库
 
 打开 <https://github.com/new>：
 
@@ -22,148 +72,117 @@
 | Repository name | `route-audit` |
 | Description | `Offline audit sandbox for model-routing cost attribution` |
 | Visibility | **Public** |
-| Initialize with README / .gitignore / license | **全部留空不勾** |
+| Initialize this repository with | **三个选项全部不勾**（README / .gitignore / license 都不要） |
 
-> 关键：**不要**勾选任何初始化选项。否则远程会有一个初始 commit，
-> 你 push 时会因历史不一致被拒。
+> **为什么必须留空**：勾了任何一项，GitHub 会生成一个初始 commit，
+> 和本地历史对不上，push 会被拒绝（可以补救，但多一步）。
 
-### 2. 在本机打开 PowerShell，进入项目目录
+---
 
-如果项目还在原来位置：
+## 第 3 步：推送（三选一）
+
+打开 PowerShell，进入项目目录：
 
 ```powershell
 cd "C:\Users\24657\Documents\deepseek-harness\default-workspace\route-audit"
 ```
 
-### 3. 推送
+### 方式一：交互式输入（最干净，推荐）
 
 ```powershell
 git push -u origin main
 ```
 
-首次推送会弹窗要求登录 GitHub。推荐用 **Personal Access Token**（不是密码）：
+- 弹出 **Git Credential Manager** 浏览器窗口时：直接关掉它，
+  终端会退回命令行提问模式
+- `Username for 'https://github.com'`：输入 `zzc1-nz`
+- `Password for 'https://zzc1-nz@github.com'`：**粘贴 PAT**（粘贴后屏幕不显示，正常）
+- 成功后 Git Credential Manager 会把凭据存进 Windows 凭据管理器，
+  以后 push 不再需要 token
 
-1. 打开 <https://github.com/settings/tokens> → **Generate new token (classic)**
-2. Note 填 `route-audit`，Expiration 选 90 天，勾选 **`repo`** 权限
-3. 生成后**立刻复制** token（页面关闭就看不到了）
-4. 回到 PowerShell，Username 填 `zzc1-nz`，Password 粘贴 token
-
-推送成功后打开 <https://github.com/zzc1-nz/route-audit> 确认。
-
----
-
-## 方案 B：用 git bundle 传输（项目不在本机时）
-
-如果你要从**另一台机器**上传，先拷走 bundle 文件：
-
-```
-route-audit\route-audit.bundle   （约 400 KB，含完整 2 个 commit）
-```
-
-在目标机器上：
-
-```bash
-git clone route-audit.bundle route-audit
-cd route-audit
-git remote set-url origin https://github.com/zzc1-nz/route-audit.git
-git push -u origin main
-```
-
-> bundle 是完整历史，克隆出来和原仓库一模一样。
-> 传输前可先校验：`git bundle verify route-audit.bundle`
-> 应输出 `The bundle records a complete history.`
-
----
-
-## 方案 C：完全不用 Git（最省事，但丢历史）
-
-1. 在 GitHub 上新建仓库 `route-audit`（同上，不勾初始化）
-2. 点 **uploading an existing file**
-3. 把 `route-audit` 目录下**除 `runs/`、`out/`、`.git/` 之外**的所有文件拖进去
-
-> 不推荐：会丢失两个有意义的 commit message，而 commit 历史本身是
-> 代码质量的信号（招聘方会看）。
-
----
-
-## 推送后建议做的 4 件事
-
-### 1. 加 Topics（提升可搜索性）
-
-仓库页右上 **⚙️ Settings → Topics**，添加：
-
-```
-llm  llm-routing  cost-optimization  model-cascade  evaluation
-llmops  cost-attribution  python  audit
-```
-
-### 2. 确认 README 在首页正常渲染
-
-打开仓库首页，检查三张图是否显示。若图片 404，通常是
-`docs/figures/` 没推上去，执行 `git ls-files docs/figures` 核对。
-
-### 3. 把仓库加到简历的链接
-
-简历里写：
-
-```
-github.com/zzc1-nz/route-audit
-```
-
-### 4. 如果你想让它出现在 GitHub 主页
-
-在 <https://github.com/zzc1-nz> 主页，仓库默认按最近更新排序，
-确保这个仓库是最近 push 的即可置顶。也可以点仓库右上 **Pin** 固定。
-
----
-
-## 验证清单（push 完成后自查）
-
-在仓库页面逐一确认：
-
-- [ ] 首页 README 正常显示，含 3 张图
-- [ ] 文件树里有 `routeaudit/`（14 个 .py）、`tests/`（10 个文件）
-- [ ] **没有** `runs/`、`out/`、`__pycache__`（被 .gitignore 排除）
-- [ ] 顶部显示 2 次 commit
-- [ ] LICENSE 显示 MIT
-- [ ] Topics 已添加
-
-然后别人 clone 下来应该能直接跑：
-
-```bash
-git clone https://github.com/zzc1-nz/route-audit
-cd route-audit
-python -m unittest discover -s tests        # 373 passed
-python -m routeaudit report --sweep --out-dir out/
-```
-
----
-
-## 常见问题
-
-**Q: `git push` 报 `rejected (fetch first)`？**
-说明远程仓库被初始化过（勾了 README）。解决：
+### 方式二：一次性内嵌 token（快，但有痕迹）
 
 ```powershell
-git pull --rebase origin main
-git push -u origin main
+git -c credential.helper= push https://zzc1-nz:<你的PAT>@github.com/zzc1-nz/route-audit.git main:main
+git branch --set-upstream-to=origin/main main 2>$null
 ```
 
-**Q: 报 `remote: Support for password authentication was removed`？**
-GitHub 不再接受账号密码，必须用 Personal Access Token（见方案 A 第 3 步）。
+> ⚠️ token 会留在 PowerShell 历史文件里。用完执行一次清理：
+> ```powershell
+> # 查看并删掉包含 ghp_ 的历史行
+> Get-Content (Get-PSReadLineOption).HistorySavePath | Where-Object { $_ -notmatch "ghp_" } | Set-Content (Get-PSReadLineOption).HistorySavePath
+> ```
 
-**Q: 图片在 GitHub 上显示不出来？**
-检查 `git ls-files docs/figures` 有没有输出。没有的话：
+### 方式三：让 Credential Manager 全程接管
+
+什么都不做，直接 `git push -u origin main`，在弹出的浏览器窗口里登录 GitHub
+账号（不用 token）。GCM 会用 OAuth 存凭据。如果你不喜欢管理 token，
+这条路最省心——但既然你要用 PAT，方式一最对口。
+
+---
+
+## 第 4 步：验证
 
 ```powershell
-git add -f docs/figures
-git commit -m "docs: add figures"
-git push
+git ls-remote https://github.com/zzc1-nz/route-audit.git
+# 应输出一行 d8b0... refs/heads/main 之类的 hash
+
+git log --oneline origin/main   # 应显示 3 个 commit
 ```
 
-**Q: 想改仓库名或改 public/private？**
-Settings → General → 最上方 Rename / 最下方 Danger Zone → Change visibility。
+浏览器打开 <https://github.com/zzc1-nz/route-audit>，确认：
 
-**Q: 推送后发现有敏感信息？**
-本仓库没有密钥或个人信息（全部是模拟数据），可以放心公开。
-`runs/audit.json`（4 MB 审计产物）已被 .gitignore 排除。
+- [ ] README 正常渲染，三张图（docs/figures/*.png）能显示
+- [ ] 文件树有 `routeaudit/` 和 `tests/`，**没有** `runs/`、`out/`
+- [ ] 顶部显示 3 commits，LICENSE 显示 MIT
+
+---
+
+## 第 5 步：收尾（可选但建议）
+
+### 加 Topics
+
+仓库页 About 旁 **⚙️** → Topics，添加：
+
+```
+llm  llm-routing  cost-optimization  model-cascade  evaluation  llmops  python  audit
+```
+
+### 用完撤销 token
+
+如果这个 token 不会再用于其他仓库，到
+<https://github.com/settings/tokens> 点 **Delete** 撤销。
+凭据管理器里已存的登录不受影响（那是 OAuth 凭据，不是这个 token）。
+
+### 以后日常更新
+
+```powershell
+git add -A
+git commit -m "..."
+git push            # 凭据管理器已存，无需再输 token
+```
+
+---
+
+## 排错速查
+
+| 报错 | 原因 | 处理 |
+|---|---|---|
+| `Failed to connect to 127.0.0.1 port 7897` | git 全局代理指向没运行的代理 | 见页首注意事项 1 |
+| `schannel: SEC_E_NO_CREDENTIALS` | Windows TLS 后端在受限环境 | 加 `-c http.sslBackend=openssl` |
+| `remote: Repository not found` | 仓库没建，或 token 没勾 `repo` scope | 建仓库 / 重新生成 token |
+| `Authentication failed` | token 过期/撤销/复制不全 | 重新生成，完整复制 `ghp_` 开头全串 |
+| `rejected (fetch first)` | 远程被初始化过（勾了 README） | `git pull --rebase origin main` 再 push |
+| `remote: Support for password authentication was removed` | 把账号密码当 token 用了 | Password 处必须粘贴 `ghp_` 开头的 PAT |
+| 图片 404 | `docs/figures` 没推上去 | `git ls-files docs/figures` 核对，缺则 `git add -f docs/figures` 后重新 commit+push |
+
+---
+
+## 附：不经过 Git 的替代方案（不推荐，仅救急）
+
+GitHub 网页 **uploading an existing file** 可以拖文件上传，但会丢掉 3 个有意义的
+commit（commit 历史本身是招聘方会看的信号），且无法上传超过 100 个文件。
+仅在完全无法使用 git 时使用。
+
+完整的仓库快照备份：项目根目录下的 `route-audit.bundle`（约 400 KB，
+含全部历史），在任何机器上 `git clone route-audit.bundle route-audit` 即可还原。
