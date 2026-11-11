@@ -442,3 +442,14 @@ python -m routeaudit report --sweep --out-dir out/
 - Strands Agents · CostGuard：预算强制执行与自适应模型路由
 - AgentFuse：路由节省与缓存命中率报告
 - 本项目的差异化：**不报告"省了多少"，而是审计"错花了多少"**
+
+---
+
+## 11. 文档索引
+
+| 文档 | 内容 |
+|---|---|
+| [README.md](README.md) | 本文件：核心结论、方法论、实测数据 |
+| [docs/RESUME.md](docs/RESUME.md) | 简历描述（中/英，多版本）+ 面试展开要点 |
+| [docs/UPLOAD.md](docs/UPLOAD.md) | 上传到 GitHub 的完整操作指南 |
+| [out/report.md](out/report.md) | CLI 自动生成的技术报告样例（执行 `--sweep` 后生成） |
